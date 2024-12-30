@@ -1,0 +1,462 @@
+version: 0.85.0
+
+type: DeclarativeSource
+
+check:
+  type: CheckStream
+  stream_names:
+    - tickets
+
+definitions:
+  streams:
+    tickets:
+      type: DeclarativeStream
+      name: tickets
+      retriever:
+        type: SimpleRetriever
+        requester:
+          $ref: '#/definitions/base_requester'
+          path: /api/v2/search.json?
+          http_method: GET
+          request_parameters:
+            query: >-
+              created_at>={{ stream_interval.start_time }} created_at<={{
+              stream_interval.end_time }}
+            filter[type]: ticket
+          request_headers:
+            Authorization: '{{ config[''authorization_key''] }}'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+              - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page
+          page_size_option:
+            type: RequestOption
+            field_name: per_page
+            inject_into: request_parameter
+          pagination_strategy:
+            type: PageIncrement
+            page_size: 100
+            start_from_page: 1
+            inject_on_first_request: false
+      incremental_sync:
+        type: DatetimeBasedCursor
+        cursor_field: created_at
+        cursor_datetime_formats:
+          - '%Y-%m-%dT%H:%M:%SZ'
+        datetime_format: '%Y-%m-%dT%H:%M:%SZ'
+        start_datetime:
+          type: MinMaxDatetime
+          datetime: '{{ config[''start_datetime''] }}'
+          datetime_format: '%Y-%m-%dT%H:%M:%SZ'
+        end_datetime:
+          type: MinMaxDatetime
+          datetime: '{{ config[''end_datetime''] }}'
+          datetime_format: '%Y-%m-%dT%H:%M:%SZ'
+        step: PT10M
+        cursor_granularity: PT1S
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $ref: '#/schemas/tickets'
+  base_requester:
+    type: HttpRequester
+    url_base: https://{{ config['zendesk_subdomain'] }}.zendesk.com
+
+streams:
+  - $ref: '#/definitions/streams/tickets'
+
+spec:
+  type: Spec
+  connection_specification:
+    type: object
+    $schema: http://json-schema.org/draft-07/schema#
+    required:
+      - zendesk_subdomain
+      - authorization_key
+      - start_datetime
+      - end_datetime
+    properties:
+      zendesk_subdomain:
+        type: string
+        title: Zendesk Subdomain
+        order: 0
+      authorization_key:
+        type: string
+        title: Authorization Key
+        airbyte_secret: true
+        order: 1
+      start_datetime:
+        type: string
+        title: Start Datetime
+        description: '2024-12-01T00:00:00Z'
+        order: 2
+      end_datetime:
+        type: string
+        title: End Datetime
+        description: '2024-12-01T00:00:00Z'
+        order: 3
+    additionalProperties: true
+
+metadata:
+  autoImportSchema:
+    tickets: false
+
+schemas:
+  tickets:
+    $schema: http://json-schema.org/schema#
+    additionalProperties: true
+    properties:
+      type:
+        type:
+          - 'null'
+          - string
+      allow_attachments:
+        type:
+          - boolean
+          - 'null'
+      allow_channelback:
+        type:
+          - boolean
+          - 'null'
+      assignee_id:
+        type:
+          - integer
+          - 'null'
+      brand_id:
+        type:
+          - integer
+          - 'null'
+      collaborator_ids:
+        type:
+          - array
+          - 'null'
+        items:
+          type:
+            - integer
+            - 'null'
+      created_at:
+        type:
+          - 'null'
+          - string
+        format: date-time
+      custom_fields:
+        type:
+          - 'null'
+          - array
+        items:
+          type:
+            - 'null'
+            - object
+          properties:
+            id:
+              type:
+                - 'null'
+                - integer
+            value:
+              type:
+                - 'null'
+                - string
+      custom_status_id:
+        type:
+          - integer
+          - 'null'
+      deleted_ticket_form_id:
+        type:
+          - integer
+          - 'null'
+      description:
+        type:
+          - string
+          - 'null'
+      due_at:
+        type:
+          - 'null'
+          - string
+        format: date-time
+      email_cc_ids:
+        type:
+          - 'null'
+          - array
+        items:
+          type:
+            - 'null'
+            - integer
+      external_id:
+        type:
+          - 'null'
+          - string
+      fields:
+        type:
+          - 'null'
+          - array
+        items:
+          type:
+            - 'null'
+            - object
+          additionalProperties: true
+          properties:
+            id:
+              type:
+                - 'null'
+                - integer
+            value:
+              type:
+                - 'null'
+                - string
+      follower_ids:
+        type:
+          - 'null'
+          - array
+        items:
+          type:
+            - 'null'
+            - integer
+      followup_ids:
+        type:
+          - 'null'
+          - array
+        items:
+          type:
+            - 'null'
+            - integer
+      forum_topic_id:
+        type:
+          - 'null'
+          - integer
+      from_messaging_channel:
+        type:
+          - 'null'
+          - boolean
+      generated_timestamp:
+        type:
+          - 'null'
+          - integer
+      group_id:
+        type:
+          - 'null'
+          - integer
+      has_incidents:
+        type:
+          - 'null'
+          - boolean
+      id:
+        type:
+          - 'null'
+          - integer
+      is_public:
+        type:
+          - 'null'
+          - boolean
+      organization_id:
+        type:
+          - 'null'
+          - integer
+      priority:
+        type:
+          - 'null'
+          - string
+      problem_id:
+        type:
+          - 'null'
+          - integer
+      raw_subject:
+        type:
+          - 'null'
+          - string
+      recipient:
+        type:
+          - 'null'
+          - string
+      requester_id:
+        type:
+          - 'null'
+          - integer
+      satisfaction_rating:
+        type:
+          - 'null'
+          - object
+          - string
+        properties:
+          assignee_id:
+            type:
+              - 'null'
+              - integer
+          comment:
+            type:
+              - 'null'
+              - string
+          created_at:
+            type:
+              - 'null'
+              - string
+            format: date-time
+          group_id:
+            type:
+              - 'null'
+              - integer
+          id:
+            type:
+              - 'null'
+              - integer
+          reason:
+            type:
+              - 'null'
+              - string
+          reason_id:
+            type:
+              - 'null'
+              - integer
+          requester_id:
+            type:
+              - 'null'
+              - integer
+          score:
+            type:
+              - 'null'
+              - string
+          ticket_id:
+            type:
+              - 'null'
+              - integer
+          updated_at:
+            type:
+              - 'null'
+              - string
+            format: date-time
+          url:
+            type:
+              - 'null'
+              - string
+      sharing_agreement_ids:
+        type:
+          - 'null'
+          - array
+        items:
+          type:
+            - 'null'
+            - integer
+      status:
+        type:
+          - 'null'
+          - string
+      subject:
+        type:
+          - 'null'
+          - string
+      submitter_id:
+        type:
+          - 'null'
+          - integer
+      tags:
+        type:
+          - 'null'
+          - array
+        items:
+          type:
+            - 'null'
+            - string
+      ticket_form_id:
+        type:
+          - 'null'
+          - integer
+      updated_at:
+        type:
+          - 'null'
+          - string
+        format: date-time
+      url:
+        type:
+          - 'null'
+          - string
+      via:
+        type:
+          - 'null'
+          - object
+        properties:
+          channel:
+            type:
+              - 'null'
+              - string
+          source:
+            type:
+              - 'null'
+              - object
+            properties:
+              from:
+                type:
+                  - 'null'
+                  - object
+                properties:
+                  address:
+                    type:
+                      - 'null'
+                      - string
+                  channel:
+                    type:
+                      - 'null'
+                      - string
+                  deleted:
+                    type:
+                      - 'null'
+                      - boolean
+                  id:
+                    type:
+                      - 'null'
+                      - integer
+                  name:
+                    type:
+                      - 'null'
+                      - string
+                  original_recipients:
+                    type:
+                      - 'null'
+                      - array
+                    items:
+                      type:
+                        - 'null'
+                        - string
+                  subject:
+                    type:
+                      - 'null'
+                      - string
+                  ticket_id:
+                    type:
+                      - 'null'
+                      - integer
+                  ticket_ids:
+                    type:
+                      - 'null'
+                      - array
+                    items:
+                      type:
+                        - 'null'
+                        - integer
+                  title:
+                    type:
+                      - 'null'
+                      - string
+              rel:
+                type:
+                  - 'null'
+                  - string
+              to:
+                type:
+                  - 'null'
+                  - object
+                properties:
+                  address:
+                    type:
+                      - 'null'
+                      - string
+                  name:
+                    type:
+                      - 'null'
+                      - string
